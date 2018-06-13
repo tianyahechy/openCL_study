@@ -15,26 +15,8 @@ int main(int argc, char ** argv)
 	std::string strOpenCLKernalEntry = "hello_kernel";
 	int objectSize = 3;
 	int numberOfEachObject = ARRAY_SIZE;
-	//读写vector,用以在分配内存时判断只读还是读写
-	//设定前几个只读，最后一个读写
-	std::vector<int> readWriteVector;
-	readWriteVector.clear();
-	readWriteVector.resize(objectSize);
-	for (size_t i = 0; i < objectSize - 1; i++)
-	{
-		readWriteVector[i] = readWrite::readOnly;
-	}
-	readWriteVector[objectSize-1] = readWrite::rw;
 
-	myOpenCL theOpenCL(strFileName, strOpenCLKernalEntry);
-
-	std::vector<cl_mem> memObjectVector;
-	memObjectVector.clear();
-	memObjectVector.resize(objectSize);
-	for (size_t i = 0; i < objectSize; i++)
-	{
-		memObjectVector[i] = 0;
-	}
+	//设定各单元数值
 	std::vector<std::vector<float>> computeVector;
 	computeVector.clear();
 	computeVector.resize(objectSize);
@@ -47,6 +29,26 @@ int main(int argc, char ** argv)
 	{
 		computeVector[0][i] = (float)i;
 		computeVector[1][i] = (float)(i * 2);
+	}
+
+	myOpenCL theOpenCL(strFileName, strOpenCLKernalEntry);
+	//读写vector,用以在分配内存时判断只读还是读写
+	//设定前几个只读，最后一个读写
+	std::vector<int> readWriteVector;
+	readWriteVector.clear();
+	readWriteVector.resize(objectSize);
+	for (size_t i = 0; i < objectSize - 1; i++)
+	{
+		readWriteVector[i] = readWrite::readOnly;
+	}
+	readWriteVector[objectSize-1] = readWrite::rw;
+
+	std::vector<cl_mem> memObjectVector;
+	memObjectVector.clear();
+	memObjectVector.resize(objectSize);
+	for (size_t i = 0; i < objectSize; i++)
+	{
+		memObjectVector[i] = 0;
 	}
 	//theOpenCL.createMemObjects(&memObjectVector[0], &computeVector[0][0], &computeVector[1][0]);
 	cl_context theContext = theOpenCL.getContext();
