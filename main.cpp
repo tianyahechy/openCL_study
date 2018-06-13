@@ -6,8 +6,8 @@ int main(int argc, char ** argv)
 	std::string fileName = "test.cl";
 	cl_mem memObjects[3] = { 0, 0, 0 };
 	myOpenCL theOpenCL;
-	cl_context theContext = theOpenCL.createContext();
 	cl_device_id  device = NULL;
+	cl_context theContext = theOpenCL.getContext();
 	cl_command_queue theQueue = theOpenCL.createCommandQueue(theContext, device);
 	cl_program theProgram = theOpenCL.createProgram(theContext, device, fileName.c_str());
 	//´´½¨openclÄÚºË

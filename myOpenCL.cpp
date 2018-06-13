@@ -1,6 +1,7 @@
 #include "myOpenCL.h"
 myOpenCL::myOpenCL()
 {
+	_theContext = this->createContext();
 }
 
 myOpenCL::~myOpenCL()
@@ -190,4 +191,10 @@ void myOpenCL::cleanUp(cl_context context, cl_command_queue commandQueue, cl_pro
 	{
 		clReleaseContext(context);
 	}
+}
+
+//返回设备上下文 
+cl_context myOpenCL::getContext()
+{
+	return _theContext;
 }

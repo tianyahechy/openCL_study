@@ -28,5 +28,10 @@ public:
 	//清空资源
 	void cleanUp(cl_context context, cl_command_queue commandQueue, cl_program program, cl_kernel theKernel, cl_mem memObjects[3]);
 
+public:
+	//返回设备上下文 
+	cl_context getContext();
+private:
+	cl_context _theContext;		//设备上下文
 };
 
