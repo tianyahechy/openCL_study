@@ -18,16 +18,16 @@ int main(int argc, char ** argv)
 	theOpenCL.createMemObjects(memObjects, a, b);
 
 	//建立内核参数
-	cl_int errNum = theOpenCL.setKernelParameter(0,memObjects[0]);
-	errNum |= theOpenCL.setKernelParameter(1,memObjects[1]);
-	errNum |= theOpenCL.setKernelParameter(2,memObjects[2]);
-
+	for (size_t i = 0; i < 3; i++)
+	{
+		theOpenCL.setKernelParameter(i, memObjects[i]);
+	}
 	//使用命令队列使将在设备上执行的内核排队
 	size_t globalWorkSize[1] = { ARRAY_SIZE };
 	size_t localWorkSize[1] = { 1 };
-	errNum = theOpenCL.setKernalQueue(globalWorkSize, localWorkSize);
+	theOpenCL.setKernalQueue(globalWorkSize, localWorkSize);
 	//从内核读回结果
-	errNum = theOpenCL.readResult(memObjects[2],result);
+	theOpenCL.readResult(memObjects[2],result);
 	for (size_t i = 0; i < ARRAY_SIZE; i++)
 	{
 		if ( i % 10 == 0 )
