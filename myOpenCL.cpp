@@ -1,11 +1,34 @@
 #include "myOpenCL.h"
-myOpenCL::myOpenCL()
+myOpenCL::myOpenCL(std::string strOpenCLFileName, std::string strOpenCLKernalEntry)
 {
+	_strOpenCLFileName = strOpenCLFileName;
+	_strOpenCLKernalEntry = strOpenCLKernalEntry;
 	_theContext = this->createContext();
+	_commandQueue = this->createCommandQueue(_theContext, _device);
+	_theProgram = this->createProgram(_strOpenCLFileName.c_str());
+	//创建opencl内核
+	_theKernel = clCreateKernel(_theProgram, _strOpenCLKernalEntry.c_str(), NULL);
 }
 
 myOpenCL::~myOpenCL()
 {
+	if (_commandQueue != 0)
+	{
+		clReleaseCommandQueue(_commandQueue);
+	}
+
+	if (_theKernel != 0)
+	{
+		clReleaseKernel(_theKernel);
+	}
+	if (_theProgram != 0)
+	{
+		clReleaseProgram(_theProgram);
+	}
+	if (_theContext != 0)
+	{
+		clReleaseContext(_theContext);
+	}
 }
 
 //为cpu平台创建上下文
@@ -99,7 +122,7 @@ cl_command_queue myOpenCL::createCommandQueue(cl_context context, cl_device_id &
 }
 
 //从磁盘加载内核源文件创建和构建一个程序对象
-cl_program myOpenCL::createProgram(cl_context context, cl_device_id device, const char* fileName)
+cl_program myOpenCL::createProgram( const char* fileName)
 {
 	std::ifstream kernelFile(fileName, std::ios::in);
 	if (!kernelFile.is_open())
@@ -117,7 +140,7 @@ cl_program myOpenCL::createProgram(cl_context context, cl_device_id device, cons
 	std::string srcStdStr = oss.str();
 	const char * srcStr = srcStdStr.c_str();
 	//创建程序对象 
-	cl_program program = clCreateProgramWithSource(context, 1, (const char**)&srcStr, NULL, NULL);
+	cl_program program = clCreateProgramWithSource(_theContext, 1, (const char**)&srcStr, NULL, NULL);
 	if (program == NULL)
 	{
 		std::cerr << "不能从源文件创建opencl程序对象" << std::endl;
@@ -134,7 +157,7 @@ cl_program myOpenCL::createProgram(cl_context context, cl_device_id device, cons
 	{
 		//判断错误原因
 		char buildLog[16384];
-		clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(buildLog), buildLog, NULL);
+		clGetProgramBuildInfo(program, _device, CL_PROGRAM_BUILD_LOG, sizeof(buildLog), buildLog, NULL);
 		std::cerr << "内核错误:" << std::endl;
 		std::cerr << buildLog;
 		clReleaseProgram(program);
@@ -148,11 +171,11 @@ cl_program myOpenCL::createProgram(cl_context context, cl_device_id device, cons
 }
 
 //创建内存对象，在设备内存中，可以由内核函数直接访问
-bool myOpenCL::createMemObjects(cl_context context, cl_mem memObjects[3], float * a, float *b)
+bool myOpenCL::createMemObjects(cl_mem memObjects[3], float * a, float *b)
 {
-	memObjects[0] = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * ARRAY_SIZE, a, NULL);
-	memObjects[1] = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * ARRAY_SIZE, b, NULL);
-	memObjects[2] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float) * ARRAY_SIZE, NULL, NULL);
+	memObjects[0] = clCreateBuffer(_theContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * ARRAY_SIZE, a, NULL);
+	memObjects[1] = clCreateBuffer(_theContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * ARRAY_SIZE, b, NULL);
+	memObjects[2] = clCreateBuffer(_theContext, CL_MEM_READ_WRITE, sizeof(float) * ARRAY_SIZE, NULL, NULL);
 	if (memObjects[0] == NULL ||
 		memObjects[1] == NULL ||
 		memObjects[2] == NULL
@@ -165,7 +188,7 @@ bool myOpenCL::createMemObjects(cl_context context, cl_mem memObjects[3], float 
 }
 
 //清空资源
-void myOpenCL::cleanUp(cl_context context, cl_command_queue commandQueue, cl_program program, cl_kernel theKernel, cl_mem memObjects[3])
+void myOpenCL::cleanUp( cl_mem memObjects[3])
 {
 	for (size_t i = 0; i < 3; i++)
 	{
@@ -174,27 +197,31 @@ void myOpenCL::cleanUp(cl_context context, cl_command_queue commandQueue, cl_pro
 			clReleaseMemObject(memObjects[i]);
 		}
 	}
-	if (commandQueue != 0)
-	{
-		clReleaseCommandQueue(commandQueue);
-	}
 
-	if (theKernel != 0)
-	{
-		clReleaseKernel(theKernel);
-	}
-	if (program != 0)
-	{
-		clReleaseProgram(program);
-	}
-	if (context != 0)
-	{
-		clReleaseContext(context);
-	}
 }
 
 //返回设备上下文 
 cl_context myOpenCL::getContext()
 {
 	return _theContext;
+}
+
+//建立内核参数
+cl_int myOpenCL::setKernelParameter( int id, cl_mem theData)
+{
+	cl_int errNum = clSetKernelArg(_theKernel, id, sizeof(cl_mem), &theData);
+	return errNum;
+}
+
+//使用命令队列使将在设备上执行的内核排队
+cl_int myOpenCL::setKernalQueue(size_t* globalWorkSize, size_t* localWorkSize)
+{
+	cl_int errNum = clEnqueueNDRangeKernel(_commandQueue, _theKernel, 1, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
+	return errNum;
+}
+//从内核读回结果
+cl_int myOpenCL::readResult(cl_mem memObject, float * result)
+{
+	cl_int errNum = clEnqueueReadBuffer(_commandQueue, memObject, CL_TRUE, 0, ARRAY_SIZE * sizeof(float), result, 0, NULL, NULL);
+	return errNum;
 }
