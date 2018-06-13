@@ -1,17 +1,25 @@
 #include "myOpenCL.h"
 myOpenCL::myOpenCL(std::string strOpenCLFileName,
 	std::string strOpenCLKernalEntry,
-	int objectSize,
-	int numberOfEachObject,
-	int sizeOfEachUnit,
-	std::vector<std::vector<float>> inputVec2)
+	int sizeOfInputType,
+	int sizeOfInputObject,
+	int sizeOfEachInputUnit,
+	std::vector<std::vector<float>> inputVec2,
+	int sizeOfOutputType,
+	int sizeOfOutputObject,
+	int sizeOfEachOutputUnit,
+	std::vector<std::vector<float>> outputVec2 )
 {
 	_strOpenCLFileName = strOpenCLFileName;
 	_strOpenCLKernalEntry = strOpenCLKernalEntry;
-	_objectSize = objectSize;
-	_numberOfEachObject = numberOfEachObject;
-	_sizeOfEachUnit = sizeOfEachUnit;
+	_sizeOfInputType = sizeOfInputType;
+	_sizeOfInputObject = sizeOfInputObject;
+	_sizeOfEachInputUnit = sizeOfEachInputUnit;
 	_inputVec2 = inputVec2;
+	_sizeOfOutputType = sizeOfOutputType;
+	_sizeOfOutputObject = sizeOfOutputObject;
+	_sizeOfEachOutputUnit = sizeOfEachOutputUnit;
+	_outputVec2 = outputVec2;
 	_theContext = NULL;
 	_commandQueue = NULL;
 	_theProgram = NULL;
@@ -22,6 +30,7 @@ myOpenCL::myOpenCL(std::string strOpenCLFileName,
 myOpenCL::~myOpenCL()
 {
 	_inputVec2.clear();
+	_outputVec2.clear();
 	if (_commandQueue != 0)
 	{
 		clReleaseCommandQueue(_commandQueue);
@@ -121,7 +130,8 @@ cl_int myOpenCL::setKernalQueue(size_t* globalWorkSize, size_t* localWorkSize)
 //从内核读回结果
 cl_int myOpenCL::readResult(cl_mem memObject, float * result)
 {
-	cl_int errNum = clEnqueueReadBuffer(_commandQueue, memObject, CL_TRUE, 0, _numberOfEachObject * _sizeOfEachUnit, result, 0, NULL, NULL);
+	cl_int errNum = clEnqueueReadBuffer(_commandQueue, memObject, CL_TRUE, 0, 
+		_sizeOfOutputObject * _sizeOfEachOutputUnit, result, 0, NULL, NULL);
 	return errNum;
 }
 
@@ -134,57 +144,57 @@ void myOpenCL::process()
 	//创建opencl内核
 	_theKernel = clCreateKernel(_theProgram, _strOpenCLKernalEntry.c_str(), NULL);
 
-	//读写vector,用以在分配内存时判断只读还是读写
-	//设定前几个只读，最后一个读写
-	std::vector<int> readWriteVector;
-	readWriteVector.clear();
-	readWriteVector.resize(_objectSize);
-	for (size_t i = 0; i < _objectSize - 1; i++)
+	std::vector<cl_mem> memInputVector;
+	memInputVector.clear();
+	memInputVector.resize(_sizeOfInputType);
+	for (size_t i = 0; i < _sizeOfInputType; i++)
 	{
-		readWriteVector[i] = readWrite::readOnly;
+		memInputVector[i] = 0;
 	}
-	readWriteVector[_objectSize - 1] = readWrite::rw;
-
-	std::vector<cl_mem> memObjectVector;
-	memObjectVector.clear();
-	memObjectVector.resize(_objectSize);
-	for (size_t i = 0; i < _objectSize; i++)
-	{
-		memObjectVector[i] = 0;
-	}
-
-	cl_context theContext = this->getContext();
 	//先读后写分配内存
-	for (size_t i = 0; i < _objectSize; i++)
+	for (size_t i = 0; i < _sizeOfInputType; i++)
 	{
-		int readW = readWriteVector[i];
-		if (readW == readWrite::readOnly)
-		{
-			memObjectVector[i] = clCreateBuffer(theContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
-				sizeof(float) * _numberOfEachObject, &_inputVec2[i][0], NULL);
-		}
-		else if (readW == readWrite::rw)
-		{
-			memObjectVector[i] = clCreateBuffer(theContext, CL_MEM_READ_WRITE, _sizeOfEachUnit * _numberOfEachObject, NULL, NULL);
-		}
+		memInputVector[i] = clCreateBuffer(_theContext, 
+			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+			_sizeOfEachInputUnit * _sizeOfInputObject, 
+			&_inputVec2[i][0], NULL);
 	}
-
-	//建立内核参数
-	for (size_t i = 0; i < _objectSize; i++)
+	std::vector<cl_mem> memOutputVector;
+	memOutputVector.clear();
+	memOutputVector.resize(_sizeOfOutputType);
+	for (size_t i = 0; i < _sizeOfOutputType; i++)
 	{
-		this->setKernelParameter(i, memObjectVector[i]);
+		memOutputVector[i] = 0;
+	}
+	//先读后写分配内存
+	for (size_t i = 0; i < _sizeOfOutputType; i++)
+	{
+		memOutputVector[i] = clCreateBuffer(_theContext, 
+			CL_MEM_READ_WRITE, 
+			_sizeOfEachOutputUnit * _sizeOfOutputObject, 
+			NULL, NULL);
+	}
+	
+	//建立内核参数
+	for (size_t i = 0; i < _sizeOfInputType; i++)
+	{
+		this->setKernelParameter(i, memInputVector[i]);
+	}
+	for (size_t i = 0; i < _sizeOfOutputType; i++)
+	{
+		this->setKernelParameter(i + _sizeOfInputType, memOutputVector[i]);
 	}
 	//使用命令队列使将在设备上执行的内核排队
-	size_t globalWorkSize[1] = { _numberOfEachObject };
+	size_t globalWorkSize[1] = { _sizeOfInputObject };
 	size_t localWorkSize[1] = { 1 };
 	this->setKernalQueue(globalWorkSize, localWorkSize);
 	//从内核读回结果
-	this->readResult(memObjectVector[_objectSize - 1], &_inputVec2[_objectSize - 1][0]);
-	memObjectVector.clear();
+	this->readResult(memInputVector[_sizeOfInputType - 1], &_outputVec2[_sizeOfOutputType - 1][0]);
+	memInputVector.clear();
 }
 
 //返回结果
-std::vector<float> myOpenCL::getResult()
+std::vector<std::vector<float>> myOpenCL::getResult()
 {
-	return _inputVec2[_objectSize - 1];
+	return _outputVec2;
 }

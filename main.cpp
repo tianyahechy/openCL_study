@@ -5,39 +5,64 @@ const int ARRAY_SIZE = 1000000;
 
 int main(int argc, char ** argv)
 {
-	std::string strFileName = "test.cl";
-	std::string strOpenCLKernalEntry = "hello_kernel";
-	int objectSize = 3;
-	int numberOfEachObject = ARRAY_SIZE;
-
+	std::string strOpenCLFileName = "test.cl";
+	std::string strOpenCLKernalEntry = "hello_kernel";		
+	int sizeOfInputType = 2;
+	int sizeOfInputObject = ARRAY_SIZE;
+	int sizeOfEachInputUnit = sizeof(float);
+	std::vector<std::vector<float>> inputVec2;	
 	//设定各单元数值
-	std::vector<std::vector<float>> computeVector;
-	computeVector.clear();
-	computeVector.resize(objectSize);
-	for (size_t j = 0; j < objectSize; j++)
+	inputVec2.clear();
+	inputVec2.resize(sizeOfInputType);
+	for (size_t j = 0; j < sizeOfInputType; j++)
 	{
-		computeVector[j].resize(numberOfEachObject);
+		inputVec2[j].resize(sizeOfInputObject);
 	}
 
-	for (size_t i = 0; i < numberOfEachObject; i++)
+	for (size_t i = 0; i < sizeOfInputObject; i++)
 	{
-		computeVector[0][i] = (float)i;
-		computeVector[1][i] = (float)(i * 2);
+		inputVec2[0][i] = (float)i;
+		inputVec2[1][i] = (float)(i * 2);
 	}
 
-	myOpenCL theOpenCL(strFileName, strOpenCLKernalEntry,objectSize,numberOfEachObject,sizeof(float),computeVector);
+	int sizeOfOutputType = 1;
+	int sizeOfOutputObject = ARRAY_SIZE;
+	int sizeOfEachOutputUnit = sizeof(float);
+	std::vector<std::vector<float>> outputVec2;
+	outputVec2.clear();
+	outputVec2.resize(sizeOfOutputType);
+	for (size_t j = 0; j < sizeOfOutputType; j++)
+	{
+		outputVec2[j].resize(sizeOfOutputObject);
+	}
+
+	myOpenCL theOpenCL(strOpenCLFileName,
+		strOpenCLKernalEntry,
+		sizeOfInputType,
+		sizeOfInputObject,
+		sizeOfEachInputUnit,
+		inputVec2,
+		sizeOfOutputType,
+		sizeOfOutputObject,
+		sizeOfEachOutputUnit,
+		outputVec2);
+
 	theOpenCL.process();
 	//输出结果
-	std::vector<float> resultVec = theOpenCL.getResult();
+	std::vector<std::vector<float>>  resultVec = theOpenCL.getResult();
 	int sizeOfResult = resultVec.size();
-	for (size_t i = 0; i < sizeOfResult; i++)
+	for (size_t j = 0; j < sizeOfResult; j++)
 	{
-		if (i % 10 == 0)
+		for (size_t i = 0; i < resultVec[j].size(); i++)
 		{
-			std::cout << std::endl;
+			if (i % 10 == 0)
+			{
+				std::cout << std::endl;
+			}
+			float theResult = resultVec[j][i];
+			std::cout << theResult << ",";
 		}
-		float theResult = resultVec[i];
-		std::cout << theResult << ",";
+	
 	}
 
 	return 0;
