@@ -5,8 +5,8 @@
 //读写内存
 enum readWrite
 {
-	readOnly = 0,
-	readWrite = 1
+	readOnly = 0,  //只读
+	rw = 1			//读写
 };
 
 int main(int argc, char ** argv)
@@ -15,7 +15,17 @@ int main(int argc, char ** argv)
 	std::string strOpenCLKernalEntry = "hello_kernel";
 	int objectSize = 3;
 	int numberOfEachObject = ARRAY_SIZE;
-	//读写vector,用以判断是否
+	//读写vector,用以在分配内存时判断只读还是读写
+	//设定前几个只读，最后一个读写
+	std::vector<int> readWriteVector;
+	readWriteVector.clear();
+	readWriteVector.resize(objectSize);
+	for (size_t i = 0; i < objectSize - 1; i++)
+	{
+		readWriteVector[i] = readWrite::readOnly;
+	}
+	readWriteVector[objectSize-1] = readWrite::rw;
+
 	myOpenCL theOpenCL(strFileName, strOpenCLKernalEntry);
 
 	std::vector<cl_mem> memObjectVector;
@@ -40,16 +50,27 @@ int main(int argc, char ** argv)
 	}
 	//theOpenCL.createMemObjects(&memObjectVector[0], &computeVector[0][0], &computeVector[1][0]);
 	cl_context theContext = theOpenCL.getContext();
-	memObjectVector[0] = clCreateBuffer(theContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * ARRAY_SIZE, &computeVector[0][0], NULL);
-	memObjectVector[1] = clCreateBuffer(theContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * ARRAY_SIZE, &computeVector[1][0], NULL);
-	memObjectVector[2] = clCreateBuffer(theContext, CL_MEM_READ_WRITE, sizeof(float) * ARRAY_SIZE, NULL, NULL);
+	//先读后写分配内存
+	for (size_t i = 0; i < objectSize; i++)
+	{
+		int readW = readWriteVector[i];
+		if (readW == readWrite::readOnly)
+		{
+			memObjectVector[i] = clCreateBuffer(theContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * numberOfEachObject, &computeVector[i][0], NULL);
+		}
+		else if (readW == readWrite::rw)
+		{
+			memObjectVector[i] = clCreateBuffer(theContext, CL_MEM_READ_WRITE, sizeof(float) * numberOfEachObject, NULL, NULL);
+		}
+	}
+	
 	//建立内核参数
 	for (size_t i = 0; i < objectSize; i++)
 	{
 		theOpenCL.setKernelParameter(i, memObjectVector[i]);
 	}
 	//使用命令队列使将在设备上执行的内核排队
-	size_t globalWorkSize[1] = { ARRAY_SIZE };
+	size_t globalWorkSize[1] = { numberOfEachObject };
 	size_t localWorkSize[1] = { 1 };
 	theOpenCL.setKernalQueue(globalWorkSize, localWorkSize);
 	//从内核读回结果
