@@ -16,18 +16,25 @@ int main(int argc, char ** argv)
 		memObjectVector[i] = 0;
 	}
 	myOpenCL theOpenCL(strFileName, strOpenCLKernalEntry);
-	float result[ARRAY_SIZE];
-	float a[ARRAY_SIZE];
-	float b[ARRAY_SIZE];
-	for (size_t i = 0; i < ARRAY_SIZE; i++)
+	std::vector<float> aVector;
+	aVector.clear();
+	aVector.resize(numberOfEachObject);
+	std::vector<float> bVector;
+	bVector.clear();
+	bVector.resize(numberOfEachObject);
+	std::vector<float> resultVector;
+	resultVector.clear();
+	resultVector.resize(numberOfEachObject);
+
+	for (size_t i = 0; i < numberOfEachObject; i++)
 	{
-		a[i] = (float)i;
-		b[i] = (float)(i * 2);
+		aVector[i] = (float)i;
+		bVector[i] = (float)(i * 2);
 	}
-	theOpenCL.createMemObjects(&memObjectVector[0], a, b);
+	theOpenCL.createMemObjects(&memObjectVector[0], &aVector[0], &bVector[0]);
 
 	//建立内核参数
-	for (size_t i = 0; i < 3; i++)
+	for (size_t i = 0; i < objectSize; i++)
 	{
 		theOpenCL.setKernelParameter(i, memObjectVector[i]);
 	}
@@ -36,14 +43,14 @@ int main(int argc, char ** argv)
 	size_t localWorkSize[1] = { 1 };
 	theOpenCL.setKernalQueue(globalWorkSize, localWorkSize);
 	//从内核读回结果
-	theOpenCL.readResult(memObjectVector[2], result);
+	theOpenCL.readResult(memObjectVector[2], &resultVector[0]);
 	for (size_t i = 0; i < ARRAY_SIZE; i++)
 	{
 		if ( i % 10 == 0 )
 		{
 			std::cout << std::endl;
 		}
-		std::cout << result[i] << ",";
+		std::cout << resultVector[i] << ",";
 	}
 
 	theOpenCL.cleanUp(&memObjectVector[0]);
