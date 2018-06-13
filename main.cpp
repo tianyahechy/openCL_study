@@ -1,6 +1,8 @@
 
 #include "myOpenCL.h"
 
+const int ARRAY_SIZE = 1000000;
+
 int main(int argc, char ** argv)
 {
 	std::string strFileName = "test.cl";
@@ -25,6 +27,18 @@ int main(int argc, char ** argv)
 
 	myOpenCL theOpenCL(strFileName, strOpenCLKernalEntry,objectSize,numberOfEachObject,sizeof(float),computeVector);
 	theOpenCL.process();
+	//Êä³ö½á¹û
+	std::vector<float> resultVec = theOpenCL.getResult();
+	int sizeOfResult = resultVec.size();
+	for (size_t i = 0; i < sizeOfResult; i++)
+	{
+		if (i % 10 == 0)
+		{
+			std::cout << std::endl;
+		}
+		float theResult = resultVec[i];
+		std::cout << theResult << ",";
+	}
 
 	return 0;
 }

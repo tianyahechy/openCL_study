@@ -152,7 +152,7 @@ void myOpenCL::process()
 	{
 		memObjectVector[i] = 0;
 	}
-	//theOpenCL.createMemObjects(&memObjectVector[0], &computeVector[0][0], &computeVector[1][0]);
+
 	cl_context theContext = this->getContext();
 	//先读后写分配内存
 	for (size_t i = 0; i < _objectSize; i++)
@@ -179,15 +179,12 @@ void myOpenCL::process()
 	size_t localWorkSize[1] = { 1 };
 	this->setKernalQueue(globalWorkSize, localWorkSize);
 	//从内核读回结果
-	this->readResult(memObjectVector[2], &_inputVec2[2][0]);
-	for (size_t i = 0; i < ARRAY_SIZE; i++)
-	{
-		if (i % 10 == 0)
-		{
-			std::cout << std::endl;
-		}
-		std::cout << _inputVec2[2][i] << ",";
-	}
-
+	this->readResult(memObjectVector[_objectSize - 1], &_inputVec2[_objectSize - 1][0]);
 	memObjectVector.clear();
+}
+
+//返回结果
+std::vector<float> myOpenCL::getResult()
+{
+	return _inputVec2[_objectSize - 1];
 }

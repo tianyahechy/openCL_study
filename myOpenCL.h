@@ -12,8 +12,6 @@
 #include <CL/cl.h>
 #endif
 
-const int ARRAY_SIZE = 10000;
-
 //读写内存
 enum readWrite
 {
@@ -35,6 +33,8 @@ public:
 public:
 	//处理全过程
 	void process();
+	//返回结果
+	std::vector<float> getResult();
 	//为cpu平台创建上下文
 	cl_context createContext();
 	//选择第一个可用设备，并创建一个命令队列
